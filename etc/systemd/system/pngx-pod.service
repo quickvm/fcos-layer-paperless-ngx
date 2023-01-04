@@ -1,0 +1,28 @@
+[Unit]
+Description=Paperless pod service
+Wants=network.target
+After=network-online.target
+Wants=pngx-postgresql.service pngx-redis.service pngx-gotenberg.service pngx-tika.service pngx-sftpgo.service pngx-webserver.service
+Before=pngx-postgresql.service pngx-redis.service pngx-gotenberg.service pngx-tika.service pngx-sftpgo.service pngx-webserver.service
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+Restart=on-failure
+EnvironmentFile=/etc/pngx/env
+ExecStartPre=-/usr/bin/podman pod create \
+  --infra-conmon-pidfile %T/%N.pid \
+  --name %N \
+  -p ${PAPERLESS_PORT}:${PAPERLESS_PORT} \
+  -p ${SFTPGO_SFTP_PORT}:${SFTPGO_SFTP_PORT} \
+  -p ${SFTPGO_HTTP_PORT}:${SFTPGO_HTTP_PORT}
+ExecStart=/usr/bin/podman pod start %N
+ExecStop=/usr/bin/podman pod stop -t 10 %N
+ExecStopPost=/usr/bin/podman pod stop -t 10 %N
+ExecStopPost=/usr/bin/podman pod rm %N
+PIDFile=%T/%N.pid
+KillMode=none
+Type=forking
+SyslogIdentifier=%N
+
+[Install]
+WantedBy=multi-user.target

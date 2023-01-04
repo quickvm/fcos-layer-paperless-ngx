@@ -1,0 +1,39 @@
+variant: fcos
+version: 1.4.0
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIyourkeyhere
+storage:
+  directories:
+  - path: /opt/pngx
+    mode: 0755
+  - path: /opt/pngx/export
+    mode: 0755
+  files:
+  - path: /etc/ostree/auth.json # Support for private registry
+    mode: 0644
+    contents:
+      inline: |
+        {}
+systemd:
+  units:
+    - name: zincati.service
+      enabled: false
+    - name: fcos-rebase.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Rebase FCOS to Container Image
+        ConditionPathExists=!/var/lib/fcos-rebase.stamp
+        ConditionFirstBoot=true
+        Before=first-boot-complete.target
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        ExecStart=rpm-ostree rebase --bypass-driver --experimental ostree-unverified-registry:quay.io/quickvm/paperless-ngx:broken
+        ExecStart=/bin/touch /var/lib/fcos-rebase.stamp
+        ExecStartPost=systemctl reboot
+        [Install]
+        WantedBy=multi-user.target

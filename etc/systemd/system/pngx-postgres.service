@@ -1,0 +1,33 @@
+[Unit]
+Description=Paperless-ngx Postgresql Service
+Wants=network.target
+After=network-online.target
+BindsTo=pngx-pod.service
+After=pngx-pod.service
+Before=pngx-webserver.service
+
+[Service]
+Environment=PODMAN_SYSTEMD_UNIT=%n
+EnvironmentFile=/etc/pngx/env
+Restart=on-failure
+ExecStartPre=/bin/bash -c "/usr/bin/podman load < /usr/src/containers/postgres-*.tar"
+ExecStart=/usr/bin/podman run \
+  --name %N \
+  --pod pngx-pod \
+  --log-driver journald \
+  --replace --rm -d \
+  --sdnotify conmon \
+  --volume %N:/var/lib/postgresql/data:Z \
+  --env-file=/etc/pngx/env \
+  $POSTGRES_CONTAINER_IMAGE
+ExecStop=/usr/bin/podman stop -t 10 %N
+ExecStopPost=/usr/bin/podman stop -i -t 10 %N
+ExecStopPost=/usr/bin/podman rm -i -v %N
+Type=notify
+NotifyAccess=all
+Delegate=true
+SyslogIdentifier=%N
+Slice=machine-pngx-pod.slice
+
+[Install]
+WantedBy=multi-user.target
